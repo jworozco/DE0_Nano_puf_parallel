@@ -95,8 +95,9 @@ localparam logic [3:0] Fifhteen  = 4'b1111;
 wire [31:0] enables1;
 wire [31:0] enables2;
 wire fsm_rst; // reset for FSM
-wire sc1_rst; // reset for PUF 1
-wire sc2_rst; // reset for PUF 2
+wire fsm_restart; // restart for FSM
+wire puf1_rst; // reset for PUF 1
+wire puf2_rst; // reset for PUF 2
 
 // Outputs
 wire [7:0] response1;
@@ -114,67 +115,68 @@ wire all_done2;
 
  puf_parallel parallel_scheme1 (
         .enable (enables1),
-        .challenge (sc1_counter),
+        .challenge (puf1_counter),
         .out (response1),
         .done (done1),
         .clock (CLOCK_50),
-        .reset (sc1_rst),
+        .reset (puf1_rst),
         .all_done (all_done1)
         );
 
 puf_parallel parallel_scheme2 (
         .enable (enables2),
-        .challenge (sc2_counter),
+        .challenge (puf2_counter),
         .out (response2),
         .done (done2),
         .clock (CLOCK_50),
-        .reset (sc2_rst),
+        .reset (puf2_rst),
         .all_done (all_done2)
         );
 
 //Create an FSM to view the results of both PUF
 
-typedef enum logic [1:0] { RESET, SC1, SC2, HALT } state_t;
+typedef enum logic [1:0] { START, PUF1, PUF2, HALT } state_t;
 
 state_t ps;  //present state
 state_t ns;  //next state
 
 //Arcs
 
-logic arc_rst_sc1;
-logic arc_sc1_sc2;
-logic arc_sc2_sc1;
-logic arc_sc2_halt;
+logic arc_rst_puf1;
+logic arc_puf1_puf2;
+logic arc_puf2_puf1;
+logic arc_puf2_halt;
 logic arc_halt_rst;
 
-assign arc_rst_sc1 = ((ps == RESET) && ~KEY[0]);
-assign arc_sc1_sc2   = ((ps == SC1) && ~KEY[1]);
-assign arc_sc2_sc1   = ((ps == SC2) && ~KEY[0]);
-assign arc_sc2_halt  = ((ps == SC2) && ~KEY[1] && (sc1_counter == 4'b1111));
-assign arc_halt_rst = ((ps == HALT) && (fsm_rst));
+assign arc_rst_puf1 = ((ps == START) && ~KEY[0]);
+assign arc_puf1_puf2   = ((ps == PUF1) && ~KEY[1]);
+assign arc_puf2_puf1   = ((ps == PUF2) && ~KEY[0]);
+assign arc_puf2_halt  = ((ps == PUF2) && ~KEY[0] && (puf1_counter == 4'b1111));
+assign arc_halt_rst = ((ps == HALT) && (fsm_restart));
 
 //Next state logic
 
-// Use KEYs as PUF enable and reset
-assign fsm_rst = ~KEY[1] && ~KEY[0];
+// Use SW as PUF reset and restart
+assign fsm_rst = SW[0]; //reset the FSM
+assign fsm_restart = SW[1]; //restart the FSM
 
 always_comb begin : next_state_calc
     unique case (ps)
-        RESET: begin
-            if (arc_rst_sc1) ns = SC1;
-            else ns = RESET;
+        START: begin
+            if (arc_rst_puf1) ns = PUF1;
+            else ns = START;
         end
-        SC1: begin
-            if (arc_sc1_sc2) ns = SC2;
-            else ns = SC1;
+        PUF1: begin
+            if (arc_puf1_puf2) ns = PUF2;
+            else ns = PUF1;
         end
-        SC2: begin
-            if (arc_sc2_sc1) ns = SC1;
-            else if (arc_sc2_halt) ns = HALT;
-            else ns = SC2;
+        PUF2: begin
+            if (arc_puf2_halt) ns = HALT;
+            else if (arc_puf2_puf1) ns = PUF1;
+            else ns = PUF2;
         end
         HALT:begin
-            if (arc_halt_rst) ns = RESET;
+            if (arc_halt_rst) ns = START;
             else ns = HALT;
         end
     endcase
@@ -182,37 +184,37 @@ end
 
 // Next State FF
 always_ff @(posedge CLOCK_50, posedge fsm_rst ) begin : PS_FF
-    if (fsm_rst) ps <= RESET; //On reset always start at RESET
+    if (fsm_rst) ps <= START; //On reset always start at START
     else ps <= ns;         //present state becomes next state
 end
 
 // Implement counters to go thru all challenges
-logic [3:0] sc1_counter;
-logic [3:0] sc2_counter;
+logic [3:0] puf1_counter;
+logic [3:0] puf2_counter;
 
 always_ff @( posedge CLOCK_50, posedge fsm_rst ) begin : SC_Counters
     if (fsm_rst) begin
-        sc1_counter <= '0;
-        sc2_counter <= '0;
+        puf1_counter <= '0;
+        puf2_counter <= '0;
     end
     else begin
-        if (arc_sc1_sc2) sc1_counter <= sc1_counter + 1'b1;
-        if (arc_sc2_sc1) sc2_counter <= sc2_counter + 1'b1;
+        if (arc_puf1_puf2) puf1_counter <= puf1_counter + 1'b1;
+        if (arc_puf2_puf1) puf2_counter <= puf2_counter + 1'b1;
     end
 end
 
 // Assign the LED to show the current SC response
-assign LED = (ps == SC1) ? response1 :
-             (ps == SC2) ? response2 :
+assign LED = (ps == PUF1) ? response1 :
+             (ps == PUF2) ? response2 :
              '0;
 
 // generate the PUF reset after each challenge
-assign sc1_rst = (ps == RESET) || (ps == SC2) || (ps == HALT);
-assign sc2_rst = (ps == RESET) || (ps == SC1) || (ps == HALT);
+assign puf1_rst = (ps == START) || (ps == PUF2) || (ps == HALT);
+assign puf2_rst = (ps == START) || (ps == PUF1) || (ps == HALT);
 
 // generate the enables
-assign enables1 = {32{(ps == SC1)}}; //enables are set only in SC1
-assign enables2 = {32{(ps == SC2)}}; //enables are set only in SC2
+assign enables1 = {32{(ps == PUF1)}}; //enables are set only in PUF1
+assign enables2 = {32{(ps == PUF2)}}; //enables are set only in PUF2
 
 
 endmodule
