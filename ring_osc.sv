@@ -26,6 +26,7 @@ module ring_osc(
   input enable
   );
 
+  /* verilator lint_off UNOPTFLAT */
   logic w1 /* synthesis keep */;
   logic w2 /* synthesis keep */;
   logic w3 /* synthesis keep */;
@@ -41,6 +42,7 @@ module ring_osc(
   logic w13 /* synthesis keep */;
   logic w14 /* synthesis keep */;
   logic w15 /* synthesis keep */;
+  /* verilator lint_on UNOPTFLAT */
 
   assign w15 = ~(enable & w14);
   assign w14 = ~ w13;  // w14 is the output we are interested in

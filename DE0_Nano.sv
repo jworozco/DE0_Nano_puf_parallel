@@ -151,7 +151,7 @@ logic arc_halt_rst;
 assign arc_rst_puf1 = ((ps == START) && ~KEY[0]);
 assign arc_puf1_puf2   = ((ps == PUF1) && ~KEY[1]);
 assign arc_puf2_puf1   = ((ps == PUF2) && ~KEY[0]);
-assign arc_puf2_halt  = ((ps == PUF2) && ~KEY[0] && (puf1_counter == 4'b1111));
+assign arc_puf2_halt  = ((ps == PUF2) && ~KEY[0] && (puf1_counter == 8'b11111111));
 assign arc_halt_rst = ((ps == HALT) && (fsm_restart));
 
 //Next state logic
@@ -189,8 +189,8 @@ always_ff @(posedge CLOCK_50, posedge fsm_rst ) begin : PS_FF
 end
 
 // Implement counters to go thru all challenges
-logic [3:0] puf1_counter;
-logic [3:0] puf2_counter;
+logic [7:0] puf1_counter;
+logic [7:0] puf2_counter;
 
 always_ff @( posedge CLOCK_50, posedge fsm_rst ) begin : SC_Counters
     if (fsm_rst) begin

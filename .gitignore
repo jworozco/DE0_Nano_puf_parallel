@@ -9,3 +9,7 @@ incremental_db
 *.sld
 *.qws
 *.htm
+results.xml
+dump.fst
+__pycache__
+sim_build

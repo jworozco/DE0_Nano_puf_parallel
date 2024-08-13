@@ -28,7 +28,9 @@ module race_arbiter(
   input reset, fin1, fin2
   );
 
-  logic cnt1_done, cnt2_done, winner /* synthesis keep */;
+  /* verilator lint_off UNOPTFLAT */
+  logic cnt1_done, cnt2_done, winner /* synthesis keep */ ;
+  /* verilator lint_on UNOPTFLAT */
 
   assign cnt1_done = (fin1 & ~ cnt2_done) === 1'b1;
   assign cnt2_done = (fin2 & ~ cnt1_done) === 1'b1;

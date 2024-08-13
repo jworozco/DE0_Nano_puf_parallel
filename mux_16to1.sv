@@ -26,7 +26,7 @@ module mux_16to1(
   output logic out
   );
 
-  always_comb begin
+  always_comb
     unique case (sel)
       4'b0000: out = in[0];
       4'b0001: out = in[1];
@@ -45,6 +45,6 @@ module mux_16to1(
       4'b1110: out = in[14];
       4'b1111: out = in[15];
     endcase
-  end
+
 
 endmodule
