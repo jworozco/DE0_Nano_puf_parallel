@@ -124,7 +124,7 @@ fsm puf_fsm (
     .clk (CLOCK_50),
     .fsm_rst(fsm_rst),
     .fsm_restart(fsm_restart),
-    .KEY(KEY),
+    .KEY(key_sync),
     .ps(ps),
     .puf1_counter(puf1_counter),
     .puf2_counter(puf2_counter)
@@ -148,6 +148,22 @@ assign puf2_rst = (ps != PUF2);
 assign enables1 = {32{(ps == PUF1)}}; //enables are set only in PUF1
 assign enables2 = {32{(ps == PUF2)}}; //enables are set only in PUF2
 
+//add synchronization for the KEYS
+logic [1:0] key_sync;
+
+dsync key_dsync0 (
+    .dsync (key_sync[0]),
+    .d (KEY[0]),
+    .clk (CLOCK_50),
+    .reset (fsm_rst)
+    );
+
+dsync key_dsync1 (
+    .dsync (key_sync[1]),
+    .d (KEY[1]),
+    .clk (CLOCK_50),
+    .reset (fsm_rst)
+    );
 
 endmodule
 
